@@ -3,6 +3,7 @@ import { useLayout } from '@/layouts/composables/layout';
 import { RouterLink, useRoute } from 'vue-router';
 import Button from 'primevue/button';
 import { ref, watch, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue';
+import PushNotificationButtons from './PushNotificationButtons.vue';
 
 const { toggleDarkMode, isDarkTheme } = useLayout();
 const route = useRoute();
@@ -44,14 +45,15 @@ onUnmounted(() => {
 <template>
   <header>
     <div class="layout-topbar">
-      <div class="layout-topbar-logo-container">
-        <RouterLink to="/" class="layout-topbar-logo">
-          <img src="@/assets/remsfal-logo.svg" alt="logo">
+      <div class="layout-topbar-logo-container min-w-0">
+        <RouterLink to="/" class="layout-topbar-logo min-w-0">
+          <img class="object-contain" src="@/assets/remsfal-logo.svg" alt="logo">
         </RouterLink>
       </div>
 
       <div class="layout-topbar-actions">
         <div class="layout-config-menu">
+          <PushNotificationButtons />
           <Button type="button" class="layout-topbar-action" @click="toggleDarkMode">
             <i class="pi" :class="[{ 'pi-moon': isDarkTheme, 'pi-sun': !isDarkTheme }]" />
           </Button>

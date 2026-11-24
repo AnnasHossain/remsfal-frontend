@@ -926,6 +926,29 @@ components:
       - REQUEST_CREATED
       - REQUEST_ANSWERED
       - REQUEST_WITHDRAWN
+    NativePushSubscriptionIdJson:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+    NativePushSubscriptionJson:
+      type: object
+      required:
+      - token
+      properties:
+        token:
+          type: string
+          pattern: \S
+          maxLength: 512
+        transport:
+          $ref: "#/components/schemas/NativePushTransport"
+        previousSubscriptionId:
+          $ref: "#/components/schemas/UUID"
+    NativePushTransport:
+      type: string
+      enum:
+      - FCM
+      - APNS
     OrderPlacementJson:
       description: An order placement created by a manager based on a quotation
       type: object
@@ -2175,6 +2198,42 @@ components:
       required:
       - id
       - email
+    WebPushPublicKeyJson:
+      type: object
+      properties:
+        publicKey:
+          type: string
+    WebPushSubscriptionIdJson:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+    WebPushSubscriptionJson:
+      type: object
+      required:
+      - endpoint
+      - keys
+      properties:
+        endpoint:
+          type: string
+          pattern: \S
+          maxLength: 2048
+        keys:
+          $ref: "#/components/schemas/WebPushSubscriptionKeysJson"
+    WebPushSubscriptionKeysJson:
+      type: object
+      required:
+      - p256dh
+      - auth
+      properties:
+        p256dh:
+          type: string
+          pattern: \S
+          maxLength: 88
+        auth:
+          type: string
+          pattern: \S
+          maxLength: 24
   securitySchemes:
     SecurityScheme:
       type: http
@@ -2301,6 +2360,78 @@ paths:
       summary: Test New Employment
       tags:
       - Mailing Resource
+  /notification/v1/push-subscriptions:
+    post:
+      summary: Register or refresh a native push subscription
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NativePushSubscriptionJson"
+        required: true
+      responses:
+        "200":
+          description: Native push subscription saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NativePushSubscriptionIdJson"
+        "400":
+          description: Invalid token or transport
+        "401":
+          description: Not authenticated
+        "409":
+          description: Token is already registered to another user
+        "503":
+          description: The selected push transport is unavailable
+        "403":
+          description: Not Allowed
+      security:
+      - SecurityScheme: []
+  /notification/v1/push-subscriptions/{id}:
+    delete:
+      summary: Remove a native push subscription
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+      responses:
+        "204":
+          description: Subscription removed or absent
+        "401":
+          description: Not authenticated
+        "403":
+          description: Not Allowed
+      security:
+      - SecurityScheme: []
+  /notification/v1/push-subscriptions/{id}/test:
+    post:
+      summary: Send a test push to the selected native subscription
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+      responses:
+        "204":
+          description: Test push accepted by the provider
+        "401":
+          description: Not authenticated
+        "404":
+          description: Subscription not found
+        "410":
+          description: Subscription expired
+        "502":
+          description: Push delivery failed
+        "503":
+          description: The selected push transport is unavailable
+        "403":
+          description: Not Allowed
+      security:
+      - SecurityScheme: []
   /notification/v1/settings/issues/emails:
     patch:
       summary: Update the issue email preferences of the authenticated manager.
@@ -2344,6 +2475,94 @@ paths:
           description: No user authentication provided via session cookie
         "403":
           description: The caller is not a manager of any project
+      security:
+      - SecurityScheme: []
+  /notification/v1/web-push/public-key:
+    get:
+      summary: Get the public Web Push application server key.
+      responses:
+        "200":
+          description: Public VAPID key when Web Push is configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebPushPublicKeyJson"
+        "401":
+          description: No user authentication provided via session cookie
+        "403":
+          description: Not Allowed
+      security:
+      - SecurityScheme: []
+  /notification/v1/web-push/subscriptions:
+    post:
+      summary: Register or refresh a Web Push subscription for the authenticated user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebPushSubscriptionJson"
+      responses:
+        "200":
+          description: Subscription saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebPushSubscriptionIdJson"
+        "400":
+          description: Invalid push subscription
+        "401":
+          description: No user authentication provided via session cookie
+        "409":
+          description: Subscription already belongs to another account
+        "503":
+          description: Web Push is unavailable
+        "403":
+          description: Not Allowed
+      security:
+      - SecurityScheme: []
+  /notification/v1/web-push/subscriptions/{id}:
+    delete:
+      summary: Remove a Web Push subscription owned by the authenticated user.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+      responses:
+        "204":
+          description: Subscription removed or absent
+        "401":
+          description: No user authentication provided via session cookie
+        "403":
+          description: Not Allowed
+      security:
+      - SecurityScheme: []
+  /notification/v1/web-push/subscriptions/{id}/test:
+    post:
+      summary: Send a test Web Push to the authenticated user's specified browser.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+      responses:
+        "204":
+          description: Push accepted by the browser's push service
+        "401":
+          description: No user authentication provided via session cookie
+        "404":
+          description: Subscription not found
+        "410":
+          description: Subscription expired
+        "502":
+          description: Push delivery failed
+        "503":
+          description: Web Push is unavailable
+        "403":
+          description: Not Allowed
       security:
       - SecurityScheme: []
 info:

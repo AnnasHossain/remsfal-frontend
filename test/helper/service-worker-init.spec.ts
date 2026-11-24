@@ -6,7 +6,7 @@ import {registerServiceWorker,
 describe('Service Worker Initialization', () => {
   beforeEach(() => {
     vi.restoreAllMocks(); // Restore mocks for clean state before each test
-    process.env.VITE_SERVICE_WORKER_ENABLED = 'true';
+    vi.unstubAllEnvs();
   });
 
   describe('registerServiceWorker', () => {
@@ -25,11 +25,21 @@ describe('Service Worker Initialization', () => {
     });
 
     it('should register service worker when enabled', async () => {
-      vi.stubGlobal('import.meta', { env: { VITE_SERVICE_WORKER_ENABLED: 'true' } });
+      vi.stubEnv('VITE_SERVICE_WORKER_ENABLED', 'true');
+      vi.stubEnv('DEV', false);
 
       await registerServiceWorker();
 
       expect(navigator.serviceWorker.register).toHaveBeenCalledWith('/sw.js');
+    });
+
+    it('registers the development module when enabled', async () => {
+      vi.stubEnv('VITE_SERVICE_WORKER_ENABLED', 'true');
+      vi.stubEnv('DEV', true);
+
+      await registerServiceWorker();
+
+      expect(navigator.serviceWorker.register).toHaveBeenCalledWith('/dev-sw.js?dev-sw', { type: 'module' });
     });
   });
 

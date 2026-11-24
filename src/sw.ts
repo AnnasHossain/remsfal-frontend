@@ -10,8 +10,8 @@ precacheAndRoute(self.__WB_MANIFEST);
 // via its own activate listener, so this handler must only ever touch caches under
 // our own runtime-cache prefix, never sweep every cache indiscriminately.
 // v1 also stored personal API responses — bumping the version makes the activate
-// handler below purge it on existing installations.
-const RUNTIME_CACHE_NAME = `${RUNTIME_CACHE_PREFIX}v2`;
+// handler below purge it on existing installations. v3 also excludes Notification API responses.
+const RUNTIME_CACHE_NAME = `${RUNTIME_CACHE_PREFIX}v3`;
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -46,7 +46,8 @@ function isCacheableRequest(request: Request): boolean {
     return false;
   }
   const url = new URL(request.url);
-  return url.origin === self.location.origin && !url.pathname.startsWith('/api/');
+  return url.origin === self.location.origin
+    && !url.pathname.startsWith('/api/') && !url.pathname.startsWith('/notification/');
 }
 
 async function networkFirst(event: FetchEvent): Promise<Response> {
@@ -85,6 +86,61 @@ async function matchCachedResponse(request: Request): Promise<Response> {
     }
   }
   return Response.error();
+}
+
+const WEB_PUSH_TAG = 'remsfal-web-push-';
+const issueIdPattern = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+
+self.addEventListener('push', (event) => {
+  event.waitUntil(showWebPush(event));
+});
+
+async function showWebPush(event: PushEvent) {
+  let payload: unknown;
+  try {
+    payload = event.data?.json();
+  } catch {
+    payload = null;
+  }
+  const german = self.navigator.language.toLowerCase().startsWith('de');
+  let body = german ? 'Sie haben eine neue Benachrichtigung.' : 'You have a new notification.';
+  let issueId: string | undefined;
+  if (typeof payload === 'object' && payload !== null && 'type' in payload) {
+    if (payload.type === 'test') {
+      body = german ? 'Das ist Ihre Testbenachrichtigung.' : 'This is your test notification.';
+    } else if (payload.type === 'issue-status-changed' && 'issueId' in payload
+      && typeof payload.issueId === 'string' && issueIdPattern.test(payload.issueId)) {
+      issueId = payload.issueId;
+      body = german ? 'Der Status Ihrer Meldung wurde aktualisiert.' : 'The status of your report has changed.';
+    }
+  }
+  await self.registration.showNotification('REMSFAL', {
+    body,
+    icon: '/android-chrome-192x192.png',
+    tag: WEB_PUSH_TAG + (issueId ?? 'general'),
+    data: { issueId },
+  });
+}
+
+self.addEventListener('notificationclick', (event) => {
+  if (!event.notification.tag.startsWith(WEB_PUSH_TAG)) return;
+
+  event.notification.close();
+  const issueId: unknown = event.notification.data?.issueId;
+  const path = typeof issueId === 'string' && issueIdPattern.test(issueId)
+    ? `/tenant/issues/${issueId}` : '/tenant/account-data';
+  event.waitUntil(openNotificationPage(path));
+});
+
+async function openNotificationPage(path: string) {
+  const url = new URL(path, self.location.origin).href;
+  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const existing = windows.find((client) => client.url === url);
+  if (existing) {
+    await existing.focus();
+  } else {
+    await self.clients.openWindow(url);
+  }
 }
 
 self.addEventListener('sync', (event) => {

@@ -176,6 +176,55 @@ npx cap sync
 npx cap open android   # or: npx cap open ios
 ```
 
+#### Native push setup
+
+Configure the sending service as described in the
+[notification service README](../REMSFALBackend/remsfal-services/remsfal-notification/README.md#native-push-notifications).
+Registration and test sending use the push buttons in the signed-in app's top bar.
+
+##### Android with FCM
+
+1. In Firebase Console, select the project used by the notification service. Under **Project settings → Your apps**,
+   select or register an Android app with package name `de.remsfal.app`.
+2. Download `google-services.json` and place it in `android/app/google-services.json`. It is the Android app
+   configuration. The service account JSON configured with `FCM_SERVICE_ACCOUNT_PATH` stays on the backend.
+   [Firebase Android setup](https://firebase.google.com/docs/android/setup)
+3. From the frontend directory, install dependencies and build the web bundle if needed. Run
+   `npx cap sync android` and `npx cap open android`, then build and install the app in Android Studio.
+
+##### iOS with APNs and CocoaPods
+
+1. In Apple Developer, open **Certificates, Identifiers & Profiles → Identifiers**. Select the explicit App ID
+   `de.remsfal.app` for your team and enable **Push Notifications**. Register that App ID if your team has
+   yet to register it. [Apple APNs registration](https://developer.apple.com/documentation/usernotifications/registering-your-app-with-apns)
+2. Under **Keys**, create or reuse a key with APNs enabled for that app and environment. Download its `.p8`
+   file and note the **Key ID** and **Team ID**. Store the key for the notification service and set
+   `APNS_PRIVATE_KEY_PATH`, `APNS_KEY_ID` and `APNS_TEAM_ID` there. The iOS app uses direct APNs.
+   [Apple APNs keys](https://developer.apple.com/help/account/capabilities/communicate-with-apns-using-authentication-tokens)
+3. For live development on a physical iPhone, set `server.url` in
+   [Capacitor](capacitor.config.ts) to a frontend URL reachable from the phone. The default
+   `localhost:5173` refers to the phone itself. The URL should serve the frontend and route the
+   REMSFAL APIs. Use a device-reachable HTTPS development URL if iOS blocks the local HTTP connection.
+4. From the frontend directory, sync the existing CocoaPods project:
+
+   ```sh
+   npm ci
+   npm run build
+   npx cap sync ios
+   npx cap open ios
+   ```
+
+   Capacitor installs the iOS pods during sync. `CapacitorPushNotifications` is already listed in
+   [the Podfile](ios/App/Podfile). In Xcode, use `ios/App/App.xcworkspace`.
+   [Capacitor iOS setup](https://capacitorjs.com/docs/ios) ·
+   [Capacitor iOS troubleshooting](https://capacitorjs.com/docs/ios/troubleshooting)
+5. In Xcode, select target **App → Signing & Capabilities**. Choose your Apple Developer team and enable
+   **Automatically manage signing** or select the matching provisioning profile. Verify that **Push Notifications**
+   is present and that the Bundle Identifier matches `APNS_TOPIC`. Use `APNS_SANDBOX=true` on the backend for
+   a development-signed build and `false` for TestFlight or another production-signed build.
+   Select the connected iPhone in Xcode and run the app.
+   [Apple APNs entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/aps-environment)
+
 ### Docker
 
 For production, the built app is served by nginx. Build the application first, then the container image:

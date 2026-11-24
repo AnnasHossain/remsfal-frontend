@@ -1,14 +1,13 @@
-export function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    const isServiceWorkerEnabled = import.meta.env.VITE_SERVICE_WORKER_ENABLED === 'true';
+export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | undefined> {
+  if (!('serviceWorker' in navigator) || import.meta.env.VITE_SERVICE_WORKER_ENABLED !== 'true') return undefined;
 
-    if (isServiceWorkerEnabled) {
-      navigator.serviceWorker.register('/sw.js').catch((error) => {
-        console.error('Service Worker registration failed:', error);
-      });
-    } else {
-      console.warn('Service Worker is disabled in the current environment.');
-    }
+  try {
+    return import.meta.env.DEV
+      ? await navigator.serviceWorker.register('/dev-sw.js?dev-sw', { type: 'module' })
+      : await navigator.serviceWorker.register('/sw.js');
+  } catch (error) {
+    console.error('Service Worker registration failed:', error);
+    return undefined;
   }
 }
 

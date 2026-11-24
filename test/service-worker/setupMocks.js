@@ -11,7 +11,13 @@ globalThis.self = {
     }
     globalThis.eventListeners[event].push(handler);
   }),
-  clients: { claim: vi.fn().mockResolvedValue(undefined) },
+  clients: {
+    claim: vi.fn().mockResolvedValue(undefined),
+    matchAll: vi.fn(),
+    openWindow: vi.fn(),
+  },
+  navigator: { language: 'de-DE' },
+  registration: { showNotification: vi.fn() },
   location: { origin: 'https://example.com' },
 };
 

@@ -128,7 +128,12 @@
 
 @media (width <= 1023px) {
     .layout-topbar {
-        padding: 0 2rem;
+        padding: 0 1rem;
+
+        .layout-topbar-actions,
+        .layout-config-menu {
+            gap: 0.25rem;
+        }
 
         .layout-topbar-logo-container {
             width: auto;
@@ -153,7 +158,7 @@
                     0 1px 4px rgb(0 0 0 / 0.08);
             border-radius: var(--content-border-radius);
             padding: 1rem;
-            right: 2rem;
+            right: 1rem;
             top: 4rem;
             min-width: 15rem;
             border: 1px solid var(--surface-border);

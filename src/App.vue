@@ -9,6 +9,8 @@ import { useEventBus } from '@/stores/EventStore'
 import { useI18n } from 'vue-i18n'
 import { TOAST_LIFE, type AppToastSeverity } from '@/composables/useAppToast'
 import { clearUserClientData } from '@/helper/clientDataCleanup'
+import { cleanUpNativePush, nativePushPlatform } from '@/features/common/nativePush'
+import { cleanUpWebPush } from '@/features/common/webPush'
 import ManagerLayout from '@/layouts/manager.vue'
 import ProjectLayout from '@/layouts/project.vue'
 import TenantLayout from '@/layouts/tenant.vue'
@@ -51,6 +53,7 @@ bus.on('auth:session-expired', () => {
   // Only emitted when the session cannot be renewed (not when the server is unreachable),
   // so no user-specific data may stay behind — regardless of the current route.
   void clearUserClientData()
+  void (nativePushPlatform ? cleanUpNativePush() : cleanUpWebPush())
   // An anonymous visit to a public page (e.g. an unawaited background fetch failing
   // at boot) also triggers this event, but there's no active session to lose there —
   // only bounce the user out when they were actually on a page that requires auth.

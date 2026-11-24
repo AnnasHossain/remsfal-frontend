@@ -40,6 +40,7 @@ describe('Service Worker Tests', () => {
     cachesKeysStub.mockResolvedValue([
       'remsfal-runtime-v1',
       'remsfal-runtime-v2',
+      'remsfal-runtime-v3',
       'workbox-precache-v2-https://example.com/',
     ]);
 
@@ -56,8 +57,9 @@ describe('Service Worker Tests', () => {
 
     // Assertions
     expect(cachesKeysStub).toHaveBeenCalledOnce();
-    expect(deleteStub).toHaveBeenCalledOnce();
+    expect(deleteStub).toHaveBeenCalledTimes(2);
     expect(deleteStub).toHaveBeenCalledWith('remsfal-runtime-v1');
+    expect(deleteStub).toHaveBeenCalledWith('remsfal-runtime-v2');
     expect(activateEvent.waitUntil).toHaveBeenCalledTimes(2);
     expect(globalThis.self.clients.claim).toHaveBeenCalledOnce();
   });
@@ -135,6 +137,7 @@ describe('Service Worker Tests', () => {
 
   it.each([
     ['same-origin API GET request', new Request('https://example.com/api/v1/projects')],
+    ['notification API GET request', new Request('https://example.com/notification/v1/web-push/public-key')],
     ['POST request', new Request('https://example.com/test-resource', { method: 'POST' })],
     ['cross-origin GET request', new Request('https://cdn.example.org/font.woff2')],
   ])('does not intercept a %s', (_label, request) => {
@@ -238,6 +241,43 @@ describe('Service Worker Tests', () => {
 
     const result = await event.respondWith.mock.calls[0][0];
     expect(result.type).toBe('error');
+  });
+
+  it('shows the status push and opens the matching tenant report when clicked', async () => {
+    const issueId = '01a1c5de-81cd-7b11-a411-3eb0dea57f91';
+    const push = {
+      data: { json: () => ({ type: 'issue-status-changed', issueId }) },
+      waitUntil: vi.fn(),
+    };
+
+    globalThis.eventListeners.push[0](push);
+    await push.waitUntil.mock.calls[0][0];
+
+    const showNotification = globalThis.self.registration.showNotification;
+    expect(showNotification).toHaveBeenCalledWith('REMSFAL', expect.objectContaining({
+      body: 'Der Status Ihrer Meldung wurde aktualisiert.',
+      data: { issueId },
+    }));
+
+    const [, options] = showNotification.mock.calls[0];
+    const click = { notification: { ...options, close: vi.fn() }, waitUntil: vi.fn() };
+    globalThis.self.clients.matchAll.mockResolvedValue([]);
+    globalThis.eventListeners.notificationclick[0](click);
+    await click.waitUntil.mock.calls[0][0];
+
+    expect(click.notification.close).toHaveBeenCalledOnce();
+    expect(globalThis.self.clients.openWindow).toHaveBeenCalledWith(`https://example.com/tenant/issues/${issueId}`);
+  });
+
+  it('shows the test push without an issue link', async () => {
+    const push = { data: { json: () => ({ type: 'test' }) }, waitUntil: vi.fn() };
+    globalThis.eventListeners.push[0](push);
+    await push.waitUntil.mock.calls[0][0];
+
+    expect(globalThis.self.registration.showNotification).toHaveBeenCalledWith('REMSFAL', expect.objectContaining({
+      body: 'Das ist Ihre Testbenachrichtigung.',
+      data: { issueId: undefined },
+    }));
   });
 
   it('should handle sync events with tag "sync-projects"', async () => {

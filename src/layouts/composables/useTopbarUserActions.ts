@@ -2,6 +2,8 @@ import {useRoute, useRouter} from 'vue-router';
 import {useI18n} from 'vue-i18n';
 import {useUserSessionStore} from '@/stores/UserSession';
 import {clearUserClientData} from '@/helper/clientDataCleanup';
+import {cleanUpNativePush, nativePushPlatform} from '@/features/common/nativePush';
+import {cleanUpWebPush} from '@/features/common/webPush';
 
 export function useTopbarUserActions(): {
     t: ReturnType<typeof useI18n>['t'];
@@ -26,7 +28,9 @@ export function useTopbarUserActions(): {
   };
 
   const logout = async () => {
-    await clearUserClientData();
+    const userId = sessionStore.user?.id;
+    const cleanUpPush = nativePushPlatform ? cleanUpNativePush(userId) : cleanUpWebPush(userId);
+    await Promise.allSettled([cleanUpPush, clearUserClientData()]);
     globalThis.location.pathname = '/api/v1/authentication/logout';
   };
 
